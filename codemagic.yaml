@@ -1,11 +1,86 @@
+# WORKFLOW AUTOGERADO E OTIMIZADO
+# Este arquivo foi reestruturado para seguir as melhores práticas de CI/CD,
+# resultando em um pipeline mais rápido, seguro e confiável.
+
 workflows:
-  android-app:
-    name: Android App
-    instance_type: mac_mini_m1
+  android-build-pipeline: # Nome do workflow mais descritivo
+    name: Android Build, Test & Release
+    instance_type: mac_mini_m1 # Conforme solicitado, ideal para projetos com dependências macOS.
+    # Para projetos puramente Android, instâncias Linux (linux_x2) podem ser mais rápidas e econômicas.
+
+    # 1. DEFINIÇÃO DO AMBIENTE
+    # Define as versões de software para um ambiente de build consistente.
+    environment:
+      java: 17 # JDK 17, conforme especificado nos pré-requisitos do projeto.
+      android_ndk: r26d # NDK r26b ou superior, conforme a documentação.
+
+    # 2. OTIMIZAÇÃO COM CACHE
+    # Armazena dependências e saídas de compilação para acelerar builds futuros.
+    cache:
+      cache_paths:
+        - ~/.gradle/caches # Cache de dependências do Gradle.
+        - ~/.gradle/wrapper # Cache do Gradle Wrapper.
+        - $CM_BUILD_DIR/build/nativelibs # Cache das bibliotecas nativas compiladas (FFmpeg, etc.).
+                                         # Este é um passo CRÍTICO para a velocidade. O script build_dependencies.sh
+                                         # só será executado na íntegra se o conteúdo do cache for inválido.
+
+    # 3. SCRIPTS DE EXECUÇÃO
+    # Sequência de passos para testar, compilar e assinar o app.
     scripts:
-      - name: Build Android App
+      - name: Instalar dependências do sistema
         script: |
-          cd $CM_BUILD_DIR
-          ./gradlew assembleRelease
+          # Instala 'nasm', um pré-requisito para a compilação do FFmpeg.
+          brew install nasm
+
+      - name: Compilar dependências nativas
+        script: |
+          # Concede permissão de execução ao script.
+          chmod +x scripts/build_dependencies.sh
+          # Define a variável de ambiente para o diretório de saída das bibliotecas nativas.
+          # Este mesmo caminho é usado na seção de cache.
+          export PREFIX="$CM_BUILD_DIR/build/nativelibs"
+          # Executa o script. Leva ~20 mins na primeira vez, mas será quase instantâneo nos builds seguintes.
+          ./scripts/build_dependencies.sh all
+
+      - name: Executar testes unitários
+        script: |
+          # Garante que as funcionalidades principais estão funcionando antes de gerar os artefatos.
+          ./gradlew testProDebugUnitTest
+
+      - name: Configurar assinatura do app
+        script: |
+          # Cria o arquivo 'local.properties' de forma segura, usando variáveis de ambiente do Codemagic.
+          # NUNCA armazene senhas ou chaves diretamente no repositório.
+          echo "keystore.path=$CM_BUILD_DIR/keystore.jks" > "$CM_BUILD_DIR/local.properties"
+          echo "keystore.password=$CM_KEYSTORE_PASSWORD" >> "$CM_BUILD_DIR/local.properties"
+          echo "key.alias=$CM_KEY_ALIAS" >> "$CM_BUILD_DIR/local.properties"
+          echo "key.password=$CM_KEY_PASSWORD" >> "$CM_BUILD_DIR/local.properties"
+
+          # Decodifica o keystore (previamente codificado em Base64 e salvo como uma variável de ambiente segura).
+          echo $CM_ENCODED_KEYSTORE | base64 --decode > $CM_BUILD_DIR/keystore.jks
+
+      - name: Compilar Android App Bundle (AAB) para a Play Store
+        script: |
+          # Gera o artefato .aab assinado, pronto para ser enviado à Google Play.
+          ./gradlew bundleProRelease
+
+      - name: Compilar APK de Release
+        script: |
+          # Gera o artefato .apk assinado para distribuição direta ou testes.
+          ./gradlew assembleProRelease
+
+    # 4. ARTEFATOS DE BUILD
+    # Especifica quais arquivos gerados devem ser salvos e disponibilizados para download.
     artifacts:
-      - app/build/outputs/**/*.apk
+      - app/build/outputs/bundle/proRelease/*.aab
+      - app/build/outputs/apk/proRelease/*.apk
+
+    # 5. PUBLICAÇÃO (OPCIONAL)
+    # Exemplo de notificação por e-mail. Pode ser expandido para publicar na Play Store, etc.
+    publishing:
+      email:
+        recipients:
+          - victor.h.f.220@gmail.com # Adicione seu e-mail aqui
+        notify:
+          success: true
+          failure: true
