@@ -1,0 +1,12 @@
+workflows:
+  android-app:
+    name: Android App
+    instance_type: mac_mini_m1
+    environment:
+      android_sdk_version: "33.0.2"
+      flutter: stable
+    scripts:
+      - name: Build Android App
+        script: ./gradlew build
+    artifacts:
+      - app/build/outputs/**/*.apk
