@@ -8,6 +8,6 @@ workflows:
       - name: Build Android App
         script: |
           cd $CM_BUILD_DIR
-          ./gradlew build
+          ./gradlew assembleDebug
     artifacts:
       - app/build/outputs/**/*.apk
