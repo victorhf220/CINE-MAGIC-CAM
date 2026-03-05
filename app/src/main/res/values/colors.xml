@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    CineCamera — Color System
+    Mapped from the professional HUD CSS design spec.
+
+    Naming convention:
+      hud_*       — HUD overlay elements
+      record_*    — Record button states
+      alert_*     — Warning / error states
+      meter_*     — Audio VU meter
+      param_*     — Manual control parameters
+-->
+<resources>
+
+    <!-- ═══════════════════════════════════════════════════
+         GLOBAL BASE
+    ════════════════════════════════════════════════════ -->
+    <color name="background_camera">#000000</color>
+    <color name="text_primary">#E6E6E6</color>
+
+    <!-- ═══════════════════════════════════════════════════
+         HUD OVERLAY
+    ════════════════════════════════════════════════════ -->
+    <!-- Panel text — inactive state (opacity 0.85 → approx D9) -->
+    <color name="hud_param_inactive">#D9E6E6E6</color>
+    <!-- Panel text — active / selected state (full opacity) -->
+    <color name="hud_param_active">#FFFFFFFF</color>
+
+    <!-- Assist tool — off state (opacity 0.70 → B3) -->
+    <color name="hud_tool_off">#B3E6E6E6</color>
+    <!-- Assist tool — on state (pure white, full opacity) -->
+    <color name="hud_tool_on">#FFFFFFFF</color>
+
+    <!-- Top / bottom status bar text (opacity 0.80 → CC) -->
+    <color name="hud_status_text">#CCE6E6E6</color>
+
+    <!-- ═══════════════════════════════════════════════════
+         RECORD BUTTON
+    ════════════════════════════════════════════════════ -->
+    <color name="record_border">#AA0000</color>
+    <color name="record_active_fill">#C40000</color>
+    <color name="record_glow">#99FF0000</color>     <!-- 60% alpha red glow -->
+    <color name="record_indicator">#FF0000</color>
+
+    <!-- ═══════════════════════════════════════════════════
+         ALERT STATES
+    ════════════════════════════════════════════════════ -->
+    <color name="alert_warning">#FFCC00</color>
+    <color name="alert_error">#FF0000</color>
+
+    <!-- ═══════════════════════════════════════════════════
+         AUDIO VU METER
+    ════════════════════════════════════════════════════ -->
+    <color name="meter_background">#222222</color>
+    <color name="meter_safe">#00FF00</color>         <!-- Green — safe level -->
+    <color name="meter_mid">#FFFF00</color>          <!-- Yellow — moderate -->
+    <color name="meter_clip">#FF0000</color>         <!-- Red — clipping -->
+
+    <!-- ═══════════════════════════════════════════════════
+         MATERIAL THEME BASE (required by AppCompat)
+    ════════════════════════════════════════════════════ -->
+    <color name="colorPrimary">#AA0000</color>
+    <color name="colorPrimaryDark">#000000</color>
+    <color name="colorAccent">#FFFFFF</color>
+
+</resources>

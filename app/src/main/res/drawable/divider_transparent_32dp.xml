@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    drawable/divider_transparent_32dp.xml
+    A transparent spacer used as the divider drawable in the top status bar
+    LinearLayout. Produces the CSS gap: 32px equivalent between status items.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <size android:width="32dp" android:height="0dp" />
+    <solid android:color="@android:color/transparent" />
+</shape>

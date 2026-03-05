@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    drawable/audio_meter_level.xml
+    Corresponds to CSS: .audio-level
+    Gradient fill: green → yellow → red, representing safe/moderate/clip levels.
+    Width is controlled programmatically via ConstraintLayout percentage
+    or a custom View. This drawable is applied as the background of the
+    inner fill view.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <gradient
+        android:angle="0"
+        android:endColor="@color/meter_clip"
+        android:startColor="@color/meter_safe"
+        android:type="linear"
+        android:centerColor="@color/meter_mid"
+        android:centerX="0.6" />
+
+    <corners android:radius="2dp" />
+
+</shape>

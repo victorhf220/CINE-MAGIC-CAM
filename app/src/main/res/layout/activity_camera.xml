@@ -1,0 +1,448 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    activity_camera.xml
+    Full-screen camera HUD layout.
+
+    CSS → Android mapping:
+      body / .preview          → FrameLayout root, black background, match_parent
+      .hud                     → ConstraintLayout overlay, inset 0, pointer-events:none
+                                 (achieved via android:importantForAccessibility="no"
+                                  and touch intercepted only on interactive children)
+      .panel-left              → LinearLayout (vertical) — left edge
+      .panel-right             → LinearLayout (vertical) — right edge
+      .top-bar                 → LinearLayout (horizontal, centered) — top
+      .bottom-bar              → ConstraintLayout — bottom edge
+      .record-btn              → View 80dp circle — center bottom
+      .rec-indicator           → TextView with rec_blink animation
+      .audio-meter             → FrameLayout with gradient fill child
+-->
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/rootLayout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_camera">
+
+    <!-- ══════════════════════════════════════════════════
+         CAMERA PREVIEW SURFACE
+         Full-screen SurfaceView fed by Camera2 preview stream.
+    ═══════════════════════════════════════════════════ -->
+    <SurfaceView
+        android:id="@+id/previewSurface"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- ══════════════════════════════════════════════════
+         HUD OVERLAY
+         ConstraintLayout spans the entire screen.
+         Only interactive children have pointer-events restored.
+    ═══════════════════════════════════════════════════ -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/hudOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clickable="false"
+        android:focusable="false">
+
+        <!-- ──────────────────────────────────────────────
+             TOP STATUS BAR
+             CSS: .top-bar — centered, gap: 32px between items
+        ─────────────────────────────────────────────── -->
+        <LinearLayout
+            android:id="@+id/topBar"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="16dp"
+            android:divider="@drawable/divider_transparent_32dp"
+            android:showDividers="middle"
+            android:clickable="false"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <!-- Resolution -->
+            <TextView
+                android:id="@+id/hudResolution"
+                style="@style/HUD.StatusBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="1920×1080"
+                tools:ignore="HardcodedText" />
+
+            <!-- Codec -->
+            <TextView
+                android:id="@+id/hudCodec"
+                style="@style/HUD.StatusBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="H.264" />
+
+            <!-- Bitrate -->
+            <TextView
+                android:id="@+id/hudBitrate"
+                style="@style/HUD.StatusBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="50 Mbps" />
+
+            <!-- Timecode / Duration -->
+            <TextView
+                android:id="@+id/hudDuration"
+                style="@style/HUD.StatusBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="00:00:00" />
+
+            <!-- Storage remaining -->
+            <TextView
+                android:id="@+id/hudStorage"
+                style="@style/HUD.StatusBar"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="64.2 GB" />
+
+            <!-- Thermal alert — hidden until warning fires -->
+            <TextView
+                android:id="@+id/hudThermal"
+                style="@style/HUD.Alert.Warning"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+        <!-- ──────────────────────────────────────────────
+             LEFT PANEL — MANUAL CONTROLS
+             CSS: .panel-left — flex column, gap: 18px
+             Each row is a .param group (label + value)
+        ─────────────────────────────────────────────── -->
+        <LinearLayout
+            android:id="@+id/panelLeft"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginStart="24dp"
+            android:clickable="false"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/topBar"
+            app:layout_constraintBottom_toTopOf="@id/bottomBar">
+
+            <!-- ISO -->
+            <LinearLayout
+                android:id="@+id/paramISORow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="18dp">
+                <TextView
+                    android:id="@+id/labelISO"
+                    style="@style/HUD.Param"
+                    android:layout_width="52dp"
+                    android:layout_height="wrap_content"
+                    android:text="@string/hud_iso" />
+                <TextView
+                    android:id="@+id/valueISO"
+                    style="@style/HUD.Param.Value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="800" />
+            </LinearLayout>
+
+            <!-- Shutter Speed -->
+            <LinearLayout
+                android:id="@+id/paramShutterRow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="18dp">
+                <TextView
+                    android:id="@+id/labelShutter"
+                    style="@style/HUD.Param"
+                    android:layout_width="52dp"
+                    android:layout_height="wrap_content"
+                    android:text="@string/hud_shutter" />
+                <TextView
+                    android:id="@+id/valueShutter"
+                    style="@style/HUD.Param.Value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="1/60" />
+            </LinearLayout>
+
+            <!-- White Balance -->
+            <LinearLayout
+                android:id="@+id/paramWBRow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="18dp">
+                <TextView
+                    android:id="@+id/labelWB"
+                    style="@style/HUD.Param"
+                    android:layout_width="52dp"
+                    android:layout_height="wrap_content"
+                    android:text="@string/hud_wb" />
+                <TextView
+                    android:id="@+id/valueWB"
+                    style="@style/HUD.Param.Value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="5600K" />
+            </LinearLayout>
+
+            <!-- Focus Distance -->
+            <LinearLayout
+                android:id="@+id/paramFocusRow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="18dp">
+                <TextView
+                    android:id="@+id/labelFocus"
+                    style="@style/HUD.Param"
+                    android:layout_width="52dp"
+                    android:layout_height="wrap_content"
+                    android:text="@string/hud_focus" />
+                <TextView
+                    android:id="@+id/valueFocus"
+                    style="@style/HUD.Param.Value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="MF ∞" />
+            </LinearLayout>
+
+            <!-- FPS -->
+            <LinearLayout
+                android:id="@+id/paramFPSRow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+                <TextView
+                    android:id="@+id/labelFPS"
+                    style="@style/HUD.Param"
+                    android:layout_width="52dp"
+                    android:layout_height="wrap_content"
+                    android:text="@string/hud_fps" />
+                <TextView
+                    android:id="@+id/valueFPS"
+                    style="@style/HUD.Param.Value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="30" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- ──────────────────────────────────────────────
+             RIGHT PANEL — ASSIST TOOLS
+             CSS: .panel-right — align-items: flex-end
+        ─────────────────────────────────────────────── -->
+        <LinearLayout
+            android:id="@+id/panelRight"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="end"
+            android:layout_marginEnd="24dp"
+            android:clickable="false"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/topBar"
+            app:layout_constraintBottom_toTopOf="@id/bottomBar">
+
+            <!-- Network stats — visible in broadcast mode only -->
+            <TextView
+                android:id="@+id/hudNetwork"
+                style="@style/HUD.TechInfo"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:gravity="end"
+                android:text=""
+                android:visibility="gone" />
+
+            <!-- Dropped frames alert -->
+            <TextView
+                android:id="@+id/hudDroppedFrames"
+                style="@style/HUD.Alert.Error"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:gravity="end"
+                android:text=""
+                android:visibility="gone" />
+
+            <!-- ZEBRA toggle indicator -->
+            <TextView
+                android:id="@+id/toolZebra"
+                style="@style/HUD.Tool"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:gravity="end"
+                android:text="@string/tool_zebra" />
+
+            <!-- FOCUS PEAKING toggle indicator -->
+            <TextView
+                android:id="@+id/toolPeaking"
+                style="@style/HUD.Tool"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:gravity="end"
+                android:text="@string/tool_peaking" />
+
+            <!-- WAVEFORM toggle indicator -->
+            <TextView
+                android:id="@+id/toolWaveform"
+                style="@style/HUD.Tool"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:gravity="end"
+                android:text="@string/tool_waveform" />
+
+            <!-- HISTOGRAM toggle indicator -->
+            <TextView
+                android:id="@+id/toolHistogram"
+                style="@style/HUD.Tool"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="end"
+                android:text="@string/tool_histogram" />
+
+        </LinearLayout>
+
+        <!-- ──────────────────────────────────────────────
+             BOTTOM BAR
+             CSS: .bottom-bar — justify-content: space-between
+                  padding: 0 48px, bottom: 24px
+        ─────────────────────────────────────────────── -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/bottomBar"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            android:paddingStart="48dp"
+            android:paddingEnd="48dp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <!-- Left cluster: REC indicator + Timecode -->
+            <LinearLayout
+                android:id="@+id/bottomLeft"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center_vertical"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent">
+
+                <!-- REC indicator — blinking animation while recording -->
+                <TextView
+                    android:id="@+id/recIndicator"
+                    style="@style/HUD.RecIndicator"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/hud_rec"
+                    android:visibility="invisible" />
+
+                <!-- LIVE indicator — visible in broadcast mode -->
+                <TextView
+                    android:id="@+id/liveIndicator"
+                    style="@style/HUD.RecIndicator"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/hud_live"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+
+            <!-- Center: RECORD BUTTON -->
+            <!-- CSS: .record-btn — 80px circle, pointer-events restored -->
+            <View
+                android:id="@+id/btnRecord"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:background="@drawable/record_button_selector"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="Record"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent" />
+
+            <!-- Right cluster: Audio VU Meter -->
+            <LinearLayout
+                android:id="@+id/bottomRight"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="end"
+                android:layout_marginEnd="0dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintBottom_toBottomOf="parent">
+
+                <!-- Left channel meter -->
+                <!-- CSS: .audio-meter 150px × 8px -->
+                <FrameLayout
+                    android:layout_width="150dp"
+                    android:layout_height="8dp"
+                    android:background="@drawable/audio_meter_background"
+                    android:layout_marginBottom="4dp">
+
+                    <View
+                        android:id="@+id/audioMeterLeft"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_gravity="start"
+                        android:background="@drawable/audio_meter_level" />
+
+                </FrameLayout>
+
+                <!-- Right channel meter -->
+                <FrameLayout
+                    android:layout_width="150dp"
+                    android:layout_height="8dp"
+                    android:background="@drawable/audio_meter_background">
+
+                    <View
+                        android:id="@+id/audioMeterRight"
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_gravity="start"
+                        android:background="@drawable/audio_meter_level" />
+
+                </FrameLayout>
+
+                <!-- Clipping warning label -->
+                <TextView
+                    android:id="@+id/audioClipWarning"
+                    style="@style/HUD.Alert.Error"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:gravity="end"
+                    android:text="@string/alert_clipping"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+</FrameLayout>

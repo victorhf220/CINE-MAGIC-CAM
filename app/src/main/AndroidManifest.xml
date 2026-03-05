@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         Camera & Recording
+    ════════════════════════════════════════════════════════════════════════ -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         Storage
+    ════════════════════════════════════════════════════════════════════════ -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         Network (Streaming)
+    ════════════════════════════════════════════════════════════════════════ -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         Sensors
+    ════════════════════════════════════════════════════════════════════════ -->
+    <uses-permission android:name="android.permission.HIGH_SAMPLING_RATE_SENSORS" />
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         Services & System
+    ════════════════════════════════════════════════════════════════════════ -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- USB Audio -->
+    <uses-permission android:name="android.permission.USB_PERMISSION"
+        tools:ignore="ProtectedPermissions" />
+
+    <!-- ═══════════════════════════════════════════════════════════════════════
+         Hardware Feature Declarations
+    ════════════════════════════════════════════════════════════════════════ -->
+    <uses-feature android:name="android.hardware.camera" android:required="true" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.level.full" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.gyroscope" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.usb.host" android:required="false" />
+
+    <application
+        android:name=".CineCameraApp"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="false"
+        android:theme="@style/Theme.CineCamera"
+        android:hardwareAccelerated="true"
+        android:largeHeap="true"
+        android:requestLegacyExternalStorage="false"
+        tools:targetApi="31">
+
+        <!-- ─── Activities ─────────────────────────────────────────────────── -->
+
+        <!-- Splash / launcher target -->
+        <activity
+            android:name=".ui.splash.SplashActivity"
+            android:exported="true"
+            android:screenOrientation="locked"
+            android:theme="@style/Theme.CineCamera.Splash">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Primary camera recording activity — landscape only -->
+        <activity
+            android:name=".ui.camera.CameraActivity"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:configChanges="orientation|keyboardHidden|screenSize|screenLayout|density"
+            android:immersive="true"
+            android:keepScreenOn="true"
+            android:windowSoftInputMode="stateHidden|adjustNothing"
+            android:launchMode="singleTop" />
+
+        <activity android:name=".ui.settings.SettingsActivity"
+            android:exported="false" android:screenOrientation="landscape" />
+        <activity android:name=".ui.gallery.GalleryActivity"
+            android:exported="false" />
+        <activity android:name=".ui.lut.LutManagerActivity"
+            android:exported="false" />
+        <activity android:name=".ui.preset.PresetManagerActivity"
+            android:exported="false" />
+        <activity android:name=".ui.stream.StreamSetupActivity"
+            android:exported="false" />
+        <activity android:name=".ui.audio.AudioSetupActivity"
+            android:exported="false" />
+        <activity android:name=".ui.telemetry.TelemetryActivity"
+            android:exported="false" />
+        <activity android:name=".ui.monetization.UpgradeActivity"
+            android:exported="false" />
+
+        <!-- ─── Services ───────────────────────────────────────────────────── -->
+
+        <!-- Primary recording foreground service — keeps session alive when
+             activity goes to background (e.g., screen timeout during long take) -->
+        <service
+            android:name=".services.RecordingService"
+            android:foregroundServiceType="camera|microphone"
+            android:exported="false"
+            android:stopWithTask="false" />
+
+        <!-- SRT / RTMP streaming service -->
+        <service
+            android:name=".services.StreamingService"
+            android:foregroundServiceType="camera|microphone|connectedDevice"
+            android:exported="false"
+            android:stopWithTask="false" />
+
+        <!-- Recovery service — monitors file integrity and restarts failed sessions -->
+        <service
+            android:name=".services.RecoveryService"
+            android:exported="false" />
+
+        <!-- Telemetry background flush service -->
+        <service
+            android:name=".services.TelemetryService"
+            android:exported="false" />
+
+        <!-- ─── Receivers ──────────────────────────────────────────────────── -->
+
+        <receiver android:name=".receivers.BootReceiver"
+            android:exported="true"
+            android:permission="android.permission.RECEIVE_BOOT_COMPLETED">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <receiver android:name=".receivers.UsbAudioReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+            </intent-filter>
+            <meta-data android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                android:resource="@xml/usb_device_filter" />
+        </receiver>
+
+        <!-- ─── Providers ──────────────────────────────────────────────────── -->
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <!-- WorkManager initializer — disabled for on-demand init via Hilt -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+
+    </application>
+</manifest>

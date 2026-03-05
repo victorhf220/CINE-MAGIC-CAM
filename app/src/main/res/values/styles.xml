@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    CineCamera — Style System
+    All text styles, widget appearances, and theme attributes are defined
+    here, translating the CSS design spec into Android's style hierarchy.
+
+    Typography: Roboto Condensed (system font, pre-installed on Android)
+    is used throughout to match the CSS font-family declaration.
+-->
+<resources>
+
+    <!-- ═══════════════════════════════════════════════════
+         APPLICATION THEME
+    ════════════════════════════════════════════════════ -->
+
+    <style name="Theme.CineCamera" parent="Theme.MaterialComponents.NoActionBar">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:windowBackground">@color/background_camera</item>
+        <item name="android:windowFullscreen">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <!-- Keep screen on during recording/streaming -->
+        <item name="android:keepScreenOn">true</item>
+    </style>
+
+    <!-- Splash screen theme — bare black before camera opens -->
+    <style name="Theme.CineCamera.Splash" parent="Theme.CineCamera">
+        <item name="android:windowBackground">@color/background_camera</item>
+        <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/background_camera</item>
+    </style>
+
+    <!-- ═══════════════════════════════════════════════════
+         HUD PARAMETER LABELS (Left Panel)
+         Corresponds to CSS: .param, .param.active
+    ════════════════════════════════════════════════════ -->
+
+    <!-- Base parameter label — inactive state -->
+    <style name="HUD.Param">
+        <item name="android:fontFamily">@font/roboto_condensed</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:letterSpacing">0.06</item>  <!-- CSS: letter-spacing 1px ≈ 0.06em at 18sp -->
+        <item name="android:textColor">@color/hud_param_inactive</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <!-- Active parameter — full opacity, semibold weight -->
+    <style name="HUD.Param.Active">
+        <item name="android:textColor">@color/hud_param_active</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <!-- Value portion of a parameter (e.g. "800" in "ISO 800") -->
+    <style name="HUD.Param.Value">
+        <item name="android:textColor">@color/hud_param_active</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <!-- ═══════════════════════════════════════════════════
+         HUD ASSIST TOOLS (Right Panel)
+         Corresponds to CSS: .tool, .tool.on
+    ════════════════════════════════════════════════════ -->
+
+    <style name="HUD.Tool">
+        <item name="android:fontFamily">@font/roboto_condensed</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:letterSpacing">0.06</item>
+        <item name="android:textColor">@color/hud_tool_off</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <style name="HUD.Tool.On">
+        <item name="android:textColor">@color/hud_tool_on</item>
+    </style>
+
+    <!-- ═══════════════════════════════════════════════════
+         TOP STATUS BAR
+         Corresponds to CSS: .top-bar
+    ════════════════════════════════════════════════════ -->
+
+    <style name="HUD.StatusBar">
+        <item name="android:fontFamily">@font/roboto_condensed</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:letterSpacing">0.06</item>
+        <item name="android:textColor">@color/hud_status_text</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <!-- ═══════════════════════════════════════════════════
+         TECH INFO
+         Corresponds to CSS: .tech-info
+    ════════════════════════════════════════════════════ -->
+
+    <style name="HUD.TechInfo">
+        <item name="android:fontFamily">@font/roboto_condensed</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:letterSpacing">0.06</item>
+        <item name="android:textColor">@color/hud_status_text</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <!-- ═══════════════════════════════════════════════════
+         REC INDICATOR
+         Corresponds to CSS: .rec-indicator
+    ════════════════════════════════════════════════════ -->
+
+    <style name="HUD.RecIndicator">
+        <item name="android:fontFamily">@font/roboto_condensed</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/record_indicator</item>
+        <item name="android:letterSpacing">0.06</item>
+    </style>
+
+    <!-- ═══════════════════════════════════════════════════
+         ALERT STATES
+         Corresponds to CSS: .warning, .error
+    ════════════════════════════════════════════════════ -->
+
+    <style name="HUD.Alert.Warning">
+        <item name="android:fontFamily">@font/roboto_condensed</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/alert_warning</item>
+        <item name="android:letterSpacing">0.06</item>
+    </style>
+
+    <style name="HUD.Alert.Error">
+        <item name="android:fontFamily">@font/roboto_condensed</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">@color/alert_error</item>
+        <item name="android:letterSpacing">0.06</item>
+    </style>
+
+</resources>

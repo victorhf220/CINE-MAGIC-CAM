@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CineCamera</string>
+
+    <!-- HUD Labels -->
+    <string name="hud_iso">ISO</string>
+    <string name="hud_shutter">SHUTTER</string>
+    <string name="hud_wb">WB</string>
+    <string name="hud_fps">FPS</string>
+    <string name="hud_focus">FOCUS</string>
+    <string name="hud_bitrate">BITRATE</string>
+    <string name="hud_rec">● REC</string>
+    <string name="hud_live">● LIVE</string>
+
+    <!-- Assist Tools -->
+    <string name="tool_zebra">ZEBRA</string>
+    <string name="tool_peaking">PEAK</string>
+    <string name="tool_waveform">WFM</string>
+    <string name="tool_histogram">HIST</string>
+
+    <!-- Alerts -->
+    <string name="alert_overheating">TEMP HIGH</string>
+    <string name="alert_dropped_frames">DROP</string>
+    <string name="alert_clipping">CLIP</string>
+    <string name="alert_low_storage">STORAGE LOW</string>
+
+    <!-- Broadcast -->
+    <string name="broadcast_srt">SRT</string>
+    <string name="broadcast_rtmp">RTMP</string>
+    <string name="broadcast_reconnecting">RECONNECTING…</string>
+</resources>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    font/roboto_condensed.xml
+    Roboto Condensed is a system font pre-installed on Android 4.0+.
+    This XML font descriptor references it by family name so it can be
+    used as @font/roboto_condensed in styles.xml without bundling the
+    font file in the APK (which would add ~200 KB per weight).
+
+    For devices that don't have Roboto Condensed pre-installed (very rare),
+    the system falls back to Roboto Regular, which is universally available.
+-->
+<font-family xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <font
+        android:fontStyle="normal"
+        android:fontWeight="400"
+        android:font="@font/roboto_condensed_regular"
+        app:fontStyle="normal"
+        app:fontWeight="400"
+        app:font="@font/roboto_condensed_regular" />
+
+    <font
+        android:fontStyle="normal"
+        android:fontWeight="700"
+        android:font="@font/roboto_condensed_bold"
+        app:fontStyle="normal"
+        app:fontWeight="700"
+        app:font="@font/roboto_condensed_bold" />
+
+</font-family>

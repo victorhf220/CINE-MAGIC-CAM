@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    drawable/record_button_selector.xml
+    State-list drawable that switches between idle and recording backgrounds.
+    Applied as android:background on the record button View.
+
+    The activated state (android:state_activated) is set programmatically
+    when recording begins: button.isActivated = true
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Recording state — filled red -->
+    <item
+        android:drawable="@drawable/record_button_recording"
+        android:state_activated="true" />
+
+    <!-- Pressed feedback — slightly brighter while finger is down -->
+    <item
+        android:drawable="@drawable/record_button_recording"
+        android:state_pressed="true" />
+
+    <!-- Default idle state — transparent with red border -->
+    <item android:drawable="@drawable/record_button_idle" />
+
+</selector>

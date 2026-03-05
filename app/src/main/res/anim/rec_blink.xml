@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    anim/rec_blink.xml
+    Corresponds to CSS: @keyframes blink
+      0%   { opacity: 1   }
+      50%  { opacity: 0.3 }
+      100% { opacity: 1   }
+
+    Duration: 1000ms, repeating infinitely.
+    Applied to the REC indicator TextView via:
+        val anim = AnimationUtils.loadAnimation(context, R.anim.rec_blink)
+        binding.recIndicator.startAnimation(anim)
+-->
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:fillAfter="true">
+
+    <alpha
+        android:duration="500"
+        android:fromAlpha="1.0"
+        android:interpolator="@android:interpolator/linear"
+        android:repeatCount="infinite"
+        android:repeatMode="reverse"
+        android:toAlpha="0.3" />
+
+</set>

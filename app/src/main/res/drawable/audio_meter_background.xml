@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    drawable/audio_meter_background.xml
+    Corresponds to CSS: .audio-meter
+    Dark background track for the VU meter bar.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <solid android:color="@color/meter_background" />
+
+    <corners android:radius="2dp" />
+
+</shape>
