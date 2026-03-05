@@ -6,13 +6,12 @@ workflows:
   android-build-pipeline: # Nome do workflow mais descritivo
     name: Android Build, Test & Release
     instance_type: mac_mini_m1 # Conforme solicitado, ideal para projetos com dependências macOS.
-    # Para projetos puramente Android, instâncias Linux (linux_x2) podem ser mais rápidas e econômicas.
+    android_ndk: r26d # NDK r26b ou superior, conforme a documentação. (CORRIGIDO)
 
     # 1. DEFINIÇÃO DO AMBIENTE
     # Define as versões de software para um ambiente de build consistente.
     environment:
       java: 17 # JDK 17, conforme especificado nos pré-requisitos do projeto.
-      android_ndk: r26d # NDK r26b ou superior, conforme a documentação.
 
     # 2. OTIMIZAÇÃO COM CACHE
     # Armazena dependências e saídas de compilação para acelerar builds futuros.
