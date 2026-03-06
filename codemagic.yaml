@@ -8,84 +8,43 @@ workflows:
       java: 17
 
     scripts:
-      # ─── PASSO 1: Corrigir gradle-wrapper.jar ausente ───────────────────────
+      # ─── PASSO 1: Corrigir gradle-wrapper.jar se ausente ───────────────────
       - name: Fix — Restaurar gradle-wrapper.jar
         script: |
           set -e
-
           echo "📦 Verificando gradle-wrapper.jar..."
-
-          if [ -f "gradle/wrapper/gradle-wrapper.jar" ]; then
-            echo "✅ gradle-wrapper.jar já existe. Pulando download."
-          else
-            echo "⚠️  gradle-wrapper.jar AUSENTE. Iniciando recuperação..."
-
-            # Lê a versão do Gradle definida no properties
-            if [ -f "gradle/wrapper/gradle-wrapper.properties" ]; then
-              GRADLE_VERSION=$(grep "distributionUrl" gradle/wrapper/gradle-wrapper.properties \
-                | grep -oP '(?<=gradle-)[0-9]+\.[0-9]+(\.[0-9]+)?(?=-(bin|all)\.zip)')
-              echo "🔍 Versão detectada no properties: $GRADLE_VERSION"
-            else
-              GRADLE_VERSION="8.7"
-              echo "⚠️  gradle-wrapper.properties não encontrado. Usando padrão: $GRADLE_VERSION"
-
-              # Recria o properties com versão padrão segura
-              mkdir -p gradle/wrapper
-              cat > gradle/wrapper/gradle-wrapper.properties << 'PROPS'
-distributionBase=GRADLE_USER_HOME
-distributionPath=wrapper/dists
-distributionUrl=https\://services.gradle.org/distributions/gradle-8.7-bin.zip
-networkTimeout=10000
-validateDistributionUrl=true
-zipStoreBase=GRADLE_USER_HOME
-zipStorePath=wrapper/dists
-PROPS
-            fi
-
-            echo "⬇️  Baixando Gradle ${GRADLE_VERSION} para gerar o wrapper..."
-            curl -fsSL \
-              "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" \
-              -o /tmp/gradle-dist.zip
-
-            echo "📂 Extraindo distribuição Gradle..."
-            unzip -q /tmp/gradle-dist.zip -d /tmp/gradle-install
-
-            echo "🔧 Gerando gradle-wrapper.jar via 'gradle wrapper'..."
+          
+          if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ] || [ ! -s "gradle/wrapper/gradle-wrapper.jar" ]; then
+            echo "⚠️  gradle-wrapper.jar AUSENTE ou INVÁLIDO. Recuperando..."
             mkdir -p gradle/wrapper
-            /tmp/gradle-install/gradle-${GRADLE_VERSION}/bin/gradle wrapper \
-              --gradle-version="${GRADLE_VERSION}" \
-              --distribution-type=bin \
-              --project-dir="$(pwd)"
-
-            # Limpeza
-            rm -rf /tmp/gradle-dist.zip /tmp/gradle-install
-
-            echo "✅ gradle-wrapper.jar gerado com sucesso!"
+            
+            # Baixa Gradle 8.7 e extrai o JAR
+            GRADLE_VERSION="8.7"
+            curl -fsSL "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" -o /tmp/gradle.zip
+            unzip -q /tmp/gradle.zip -d /tmp/
+            cp /tmp/gradle-${GRADLE_VERSION}/lib/gradle-wrapper-shared-${GRADLE_VERSION}.jar gradle/wrapper/gradle-wrapper.jar
+            rm -rf /tmp/gradle-${GRADLE_VERSION} /tmp/gradle.zip
+            echo "✅ gradle-wrapper.jar restaurado!"
+          else
+            echo "✅ gradle-wrapper.jar OK"
           fi
+          
+          chmod +x gradlew gradlew.bat
 
-          # Garante permissão de execução no gradlew
-          chmod +x gradlew
-          echo "📋 Conteúdo de gradle/wrapper/:"
-          ls -lah gradle/wrapper/
-
-      # ─── PASSO 2: Verificar versão do Gradle ────────────────────────────────
+      # ─── PASSO 2: Verificar Gradle ──────────────────────────────────────────
       - name: Check Gradle version
         script: |
-          chmod +x gradlew
           ./gradlew --version
 
       # ─── PASSO 3: Verificar ambiente ────────────────────────────────────────
-      - name: Check environment
+      - name: Setup environment
         script: |
           echo "☕ Java version:"
           java -version
-
           echo "📱 Android SDK:"
-          echo "  ANDROID_SDK_ROOT = $ANDROID_SDK_ROOT"
-          echo "  ANDROID_HOME     = $ANDROID_HOME"
-
-          echo "📁 Estrutura do projeto:"
-          ls -la
+          echo "  ANDROID_HOME = $ANDROID_HOME"
+          echo "  Creating local.properties..."
+          echo "sdk.dir=/opt/android-sdk" > local.properties
 
       # ─── PASSO 4: Limpar projeto ─────────────────────────────────────────────
       - name: Clean project
@@ -95,26 +54,17 @@ PROPS
       # ─── PASSO 5: Build Debug APK ────────────────────────────────────────────
       - name: Build Debug APK
         script: |
-          ./gradlew assembleDebug \
-            --no-daemon \
-            --stacktrace \
-            --info
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
       # ─── PASSO 6: Build Release AAB ──────────────────────────────────────────
       - name: Build Release AAB
         script: |
-          ./gradlew bundleRelease \
-            --no-daemon \
-            --stacktrace
+          ./gradlew bundleRelease --no-daemon --stacktrace
 
-    # ─── ARTEFATOS GERADOS ───────────────────────────────────────────────────
     artifacts:
       - app/build/outputs/apk/debug/*.apk
-      - app/build/outputs/apk/release/*.apk
       - app/build/outputs/bundle/release/*.aab
-      - app/build/outputs/logs/*.txt
 
-    # ─── CACHE (acelera builds futuros) ──────────────────────────────────────
     cache:
       cache_paths:
         - $HOME/.gradle/caches
