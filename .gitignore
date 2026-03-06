@@ -3,6 +3,9 @@
 build/
 local.properties
 
+# BUT force-track gradle wrapper jar (obrigatório para CI/CD)
+!gradle/wrapper/gradle-wrapper.jar
+
 # Android Studio
 .idea/
 *.iml
