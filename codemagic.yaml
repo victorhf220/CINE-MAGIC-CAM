@@ -26,6 +26,18 @@ workflows:
           source: true
 
     scripts:
+      - name: Setup Environment
+        script: |
+          # Create local.properties for CI/CD
+          cat > local.properties << EOF
+          sdk.dir=/opt/android-sdk
+          keystore.path=$(pwd)/debug.keystore
+          keystore.password=android
+          key.alias=androiddebugkey
+          key.password=android
+          EOF
+          echo "✓ local.properties created"
+          
       - name: Setup and Clean
         script: |
           chmod +x gradlew || true

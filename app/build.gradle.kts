@@ -46,10 +46,14 @@ android {
     // ── Signing ───────────────────────────────────────────────────────────────
     signingConfigs {
         create("release") {
-            storeFile = localProperties.getProperty("keystore.path")?.let { file(it) }
-            storePassword = localProperties.getProperty("keystore.password")
-            keyAlias = localProperties.getProperty("key.alias")
-            keyPassword = localProperties.getProperty("key.password")
+            val keystorePath = localProperties.getProperty("keystore.path")
+            if (!keystorePath.isNullOrEmpty() && file(keystorePath).exists()) {
+                storeFile = file(keystorePath)
+                storePassword = localProperties.getProperty("keystore.password")
+                keyAlias = localProperties.getProperty("key.alias")
+                keyPassword = localProperties.getProperty("key.password")
+            }
+            // If no keystore, signing will be optional (for CI/CD)
         }
     }
 
@@ -71,7 +75,11 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            // Only assign signing config if keystore is available
+            val keystorePath = localProperties.getProperty("keystore.path")
+            if (!keystorePath.isNullOrEmpty() && file(keystorePath).exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             buildConfigField("boolean", "ENABLE_LOGGING", "false")
             buildConfigField("boolean", "ENABLE_STRICT_MODE", "false")
             buildConfigField("String", "TELEMETRY_ENDPOINT", "\"https://telemetry.cinecamera.io/v1\"")
