@@ -19,6 +19,26 @@ set -euo pipefail
 NDK="${ANDROID_NDK_HOME:-${NDK_HOME:-}}"
 [[ -z "$NDK" ]] && { echo "ERROR: ANDROID_NDK_HOME not set"; exit 1; }
 
+# Detecta a plataforma do NDK
+detect_ndk_platform() {
+    local ndk_path="$1"
+    local toolchain_path="$ndk_path/toolchains/llvm/prebuilt"
+    
+    if [ -d "$toolchain_path/darwin-x86_64" ]; then
+        echo "darwin-x86_64"
+    elif [ -d "$toolchain_path/darwin-arm64" ]; then
+        echo "darwin-arm64"
+    elif [ -d "$toolchain_path/linux-x86_64" ]; then
+        echo "linux-x86_64"
+    elif [ -d "$toolchain_path/windows-x86_64" ]; then
+        echo "windows-x86_64"
+    else
+        echo "ERROR: NDK toolchain não encontrado em $toolchain_path"
+        ls -la "$toolchain_path" || true
+        exit 1
+    fi
+}
+
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD_DIR="$ROOT/.build_deps"
 OUTPUT_BASE="$ROOT/app/src/main/cpp/libs"
@@ -44,9 +64,229 @@ OPENSSL_URL="https://www.openssl.org/source/openssl-${OPENSSL_VERSION}.tar.gz"
 SRT_URL="https://github.com/Haivision/srt.git"
 FFMPEG_URL="https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2"
 
-TOOLCHAIN="$NDK/toolchains/llvm/prebuilt/linux-x86_64"
+# Detecta a plataforma dinamicamente
+NDK_PLATFORM=$(detect_ndk_platform "$NDK")
+TOOLCHAIN="$NDK/toolchains/llvm/prebuilt/$NDK_PLATFORM"
+
+echo "Plataforma NDK detectada: $NDK_PLATFORM"
+echo "Toolchain: $TOOLCHAIN"
+
+if [ ! -d "$TOOLCHAIN" ]; then
+    echo "ERROR: Toolchain não encontrado: $TOOLCHAIN"
+    exit 1
+fi
 
 mkdir -p "$BUILD_DIR" "$INCLUDE_DIR/srt" "$INCLUDE_DIR/ffmpeg"
+
+# ─── Helper ───────────────────────────────────────────────────────────────────
+
+get_triple() {
+    case "$1" in
+        arm64-v8a) echo "aarch64-linux-android" ;;
+        x86_64)    echo "x86_64-linux-android" ;;
+    esac
+}
+
+get_ffmpeg_arch() {
+    case "$1" in
+        arm64-v8a) echo "aarch64" ;;
+        x86_64)    echo "x86_64" ;;
+    esac
+}
+
+# ─── Phase 1: OpenSSL ─────────────────────────────────────────────────────────
+
+build_openssl() {
+    local ABI="$1" TRIPLE
+    TRIPLE=$(get_triple "$ABI")
+    local CC="$TOOLCHAIN/bin/${TRIPLE}${API}-clang"
+    local SRC="$BUILD_DIR/openssl-$OPENSSL_VERSION"
+    local PREFIX="$BUILD_DIR/openssl_install_$ABI"
+
+    echo "Building OpenSSL $OPENSSL_VERSION for $ABI..."
+
+    if [[ ! -d "$SRC" ]]; then
+        echo "  Downloading OpenSSL..."
+        wget -q "$OPENSSL_URL" -O "$BUILD_DIR/openssl.tar.gz"
+        tar -xf "$BUILD_DIR/openssl.tar.gz" -C "$BUILD_DIR"
+    fi
+
+    mkdir -p "$PREFIX"
+    (
+        cd "$SRC"
+        OSSL_ABI="$([ "$ABI" = "arm64-v8a" ] && echo "android-arm64" || echo "android-x86_64")"
+        echo "  Configurando com ABI: $OSSL_ABI"
+        PATH="$TOOLCHAIN/bin:$PATH" \
+        ANDROID_NDK_ROOT="$NDK" \
+        ./Configure "$OSSL_ABI" \
+            -D__ANDROID_API__=$API \
+            no-shared no-tests no-ui-console \
+            --prefix="$PREFIX" || {
+            echo "ERROR: OpenSSL Configure falhou"
+            exit 1
+        }
+        echo "  Compilando..."
+        make -j"$(sysctl -n hw.ncpu 2>/dev/null || nproc)" build_libs
+        make install_dev
+    )
+
+    local OUT="$OUTPUT_BASE/$ABI"
+    mkdir -p "$OUT"
+    cp "$PREFIX/lib/libssl.a" "$PREFIX/lib/libcrypto.a" "$OUT/"
+    cp -r "$PREFIX/include/openssl" "$INCLUDE_DIR/" 2>/dev/null || true
+    echo "  ✓ OpenSSL → $OUT"
+}
+
+# ─── Phase 2: libsrt ─────────────────────────────────────────────────────────
+
+build_srt() {
+    local ABI="$1"
+    local SRC="$BUILD_DIR/srt"
+    local BDIR="$BUILD_DIR/srt_build_$ABI"
+    local OPENSSL_PREFIX="$BUILD_DIR/openssl_install_$ABI"
+
+    echo "Building libsrt $SRT_VERSION for $ABI..."
+
+    if [[ ! -d "$SRC" ]]; then
+        echo "  Clonando repositório srt..."
+        git clone --depth 1 --branch "$SRT_VERSION" "$SRT_URL" "$SRC" || {
+            echo "ERROR: Falha ao clonar SRT"
+            exit 1
+        }
+    fi
+    mkdir -p "$BDIR"
+
+    echo "  Configurando CMake..."
+    cmake -S "$SRC" -B "$BDIR" \
+        -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \
+        -DANDROID_ABI="$ABI" \
+        -DANDROID_PLATFORM="android-$API" \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DENABLE_SHARED=OFF \
+        -DENABLE_STATIC=ON \
+        -DENABLE_APPS=OFF \
+        -DENABLE_ENCRYPTION=ON \
+        -DUSE_OPENSSL=ON \
+        -DOPENSSL_ROOT_DIR="$OPENSSL_PREFIX" \
+        -DOPENSSL_INCLUDE_DIR="$OPENSSL_PREFIX/include" \
+        -DOPENSSL_CRYPTO_LIBRARY="$OPENSSL_PREFIX/lib/libcrypto.a" \
+        -DOPENSSL_SSL_LIBRARY="$OPENSSL_PREFIX/lib/libssl.a" \
+        -DENABLE_CXX11=ON \
+        -Wno-dev || {
+        echo "ERROR: CMake configure falhou para SRT"
+        exit 1
+    }
+
+    echo "  Compilando SRT..."
+    cmake --build "$BDIR" -j"$(sysctl -n hw.ncpu 2>/dev/null || nproc)" || {
+        echo "ERROR: SRT build falhou"
+        exit 1
+    }
+
+    cp "$BDIR/libsrt.a" "$OUTPUT_BASE/$ABI/"
+    cp "$SRC/srtcore/"*.h "$INCLUDE_DIR/srt/" 2>/dev/null || true
+    echo "  ✓ libsrt → $OUTPUT_BASE/$ABI/libsrt.a"
+}
+
+# ─── Phase 3: FFmpeg ─────────────────────────────────────────────────────────
+
+build_ffmpeg() {
+    local ABI="$1" TRIPLE ARCH
+    TRIPLE=$(get_triple "$ABI")
+    ARCH=$(get_ffmpeg_arch "$ABI")
+    local CC="$TOOLCHAIN/bin/${TRIPLE}${API}-clang"
+    local CXX="$TOOLCHAIN/bin/${TRIPLE}${API}-clang++"
+    local SRC="$BUILD_DIR/ffmpeg-$FFMPEG_VERSION"
+    local PREFIX="$BUILD_DIR/ffmpeg_install_$ABI"
+
+    echo "Building FFmpeg $FFMPEG_VERSION for $ABI (remux libs only)..."
+
+    if [[ ! -d "$SRC" ]]; then
+        echo "  Downloading FFmpeg..."
+        wget -q "$FFMPEG_URL" -O "$BUILD_DIR/ffmpeg.tar.bz2"
+        tar -xf "$BUILD_DIR/ffmpeg.tar.bz2" -C "$BUILD_DIR"
+    fi
+
+    mkdir -p "$PREFIX"
+    (
+        cd "$SRC"
+        echo "  Configurando FFmpeg..."
+        PATH="$TOOLCHAIN/bin:$PATH"
+        ./configure \
+            --prefix="$PREFIX" \
+            --target-os=android \
+            --arch="$ARCH" \
+            --cc="$CC" \
+            --cxx="$CXX" \
+            --cross-prefix="${TRIPLE}-" \
+            --sysroot="$TOOLCHAIN/sysroot" \
+            --extra-cflags="-O3 -ffast-math -D__ANDROID_API__=$API" \
+            --enable-static \
+            --disable-shared \
+            --disable-programs \
+            --disable-doc \
+            --disable-debug \
+            --disable-avdevice \
+            --disable-swscale \
+            --disable-postproc \
+            --disable-network \
+            --disable-encoders \
+            --disable-muxers \
+            --disable-filters \
+            --disable-bsfs \
+            --disable-protocols \
+            --enable-protocol=file \
+            --enable-demuxer=mov,mp4,h264,aac \
+            --enable-muxer=mp4,mov \
+            --enable-decoder=h264,hevc,aac \
+            --enable-parser=h264,hevc,aac || {
+            echo "ERROR: FFmpeg configure falhou"
+            exit 1
+        }
+        echo "  Compilando FFmpeg..."
+        make -j"$(sysctl -n hw.ncpu 2>/dev/null || nproc)" || {
+            echo "ERROR: FFmpeg build falhou"
+            exit 1
+        }
+        make install
+    )
+
+    local OUT="$OUTPUT_BASE/$ABI"
+    cp "$PREFIX/lib/libavformat.a" "$PREFIX/lib/libavcodec.a" \
+       "$PREFIX/lib/libavutil.a" "$PREFIX/lib/libswresample.a" "$OUT/" || {
+        echo "ERROR: Falha ao copiar bibliotecas FFmpeg"
+        exit 1
+    }
+    cp -r "$PREFIX/include/libavformat" "$PREFIX/include/libavcodec" \
+          "$PREFIX/include/libavutil" "$PREFIX/include/libswresample" "$INCLUDE_DIR/ffmpeg/" 2>/dev/null || true
+    echo "  ✓ FFmpeg → $OUT"
+}
+
+# ─── Main ─────────────────────────────────────────────────────────────────────
+
+echo "═══════════════════════════════════════════════════════════"
+echo "  CineCamera Native Dependencies Build"
+echo "  NDK: $NDK"
+echo "  NDK Platform: $NDK_PLATFORM"
+echo "  ABIs: ${ABIS[*]}"
+echo "═══════════════════════════════════════════════════════════"
+
+for ABI in "${ABIS[@]}"; do
+    echo ""
+    echo "────────────────────────────────────────────────────────"
+    echo "  Processing: $ABI"
+    echo "────────────────────────────────────────────────────────"
+    mkdir -p "$OUTPUT_BASE/$ABI"
+    
+    build_openssl "$ABI" || exit 1
+    build_srt "$ABI" || exit 1
+    build_ffmpeg "$ABI" || exit 1
+done
+
+echo ""
+echo "═══════════════════════════════════════════════════════════"
+echo "  ✓ All native dependencies built successfully"
+echo "═══════════════════════════════════════════════════════════"
 
 # ─── Helper ───────────────────────────────────────────────────────────────────
 
