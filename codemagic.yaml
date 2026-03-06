@@ -26,6 +26,13 @@ workflows:
           source: true
 
     scripts:
+      - name: Clean Gradle Cache
+        script: |
+          # Force clean gradle cache to ensure fresh download of gradle-8.4
+          rm -rf ~/.gradle/wrapper/dists/gradle-8.1.1* || true
+          rm -rf ~/.gradle/wrapper/dists/gradle-8.3.2* || true
+          echo "✓ Old Gradle versions removed from cache"
+          
       - name: Setup Environment
         script: |
           # Create local.properties for CI/CD
