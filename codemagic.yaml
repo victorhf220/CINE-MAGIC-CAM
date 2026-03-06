@@ -26,30 +26,31 @@ workflows:
           source: true
 
     scripts:
-      - name: Clean project
+      - name: Setup and Clean
         script: |
-          chmod +x gradlew
-          ./gradlew clean
+          chmod +x gradlew || true
+          # Use gradle command if gradlew not available
+          gradle clean
 
       - name: Download dependencies
         script: |
-          ./gradlew dependencies
+          gradle dependencies
 
       - name: Build APK Free Release
         script: |
-          ./gradlew assembleFreeRelease
+          gradle assembleFreeRelease
 
       - name: Build APK Pro Release
         script: |
-          ./gradlew assembleProRelease
+          gradle assembleProRelease
 
       - name: Build APK Enterprise Release
         script: |
-          ./gradlew assembleEnterpriseRelease
+          gradle assembleEnterpriseRelease
 
       - name: Build App Bundle
         script: |
-          ./gradlew bundleProRelease
+          gradle bundleProRelease
 
     artifacts:
       - app/build/outputs/**/*.apk
