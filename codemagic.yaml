@@ -1,85 +1,64 @@
-# WORKFLOW AUTOGERADO E OTIMIZADO
-# Este arquivo foi reestruturado para seguir as melhores práticas de CI/CD,
-# resultando em um pipeline mais rápido, seguro e confiável.
+# ════════════════════════════════════════════════════════════════════════════════
+# CINEMAGIC-CAM - Codemagic CI/CD Pipeline
+# Estrutura simplificada e validada
+# ════════════════════════════════════════════════════════════════════════════════
 
 workflows:
-  android-build-pipeline: # Nome do workflow mais descritivo
-    name: Android Build, Test & Release
-    instance_type: mac_mini_m1 # Conforme solicitado, ideal para projetos com dependências macOS.
-    android_ndk: r26d # NDK r26b ou superior, conforme a documentação. (CORRIGIDO)
+  android-build:
+    name: Android Build Pipeline
+    instance_type: linux_x2
+    max_build_duration: 60
 
-    # 1. DEFINIÇÃO DO AMBIENTE
-    # Define as versões de software para um ambiente de build consistente.
     environment:
-      java: 17 # JDK 17, conforme especificado nos pré-requisitos do projeto.
+      java: 17
 
-    # 2. OTIMIZAÇÃO COM CACHE
-    # Armazena dependências e saídas de compilação para acelerar builds futuros.
     cache:
       cache_paths:
-        - ~/.gradle/caches # Cache de dependências do Gradle.
-        - ~/.gradle/wrapper # Cache do Gradle Wrapper.
-        - $CM_BUILD_DIR/build/nativelibs # Cache das bibliotecas nativas compiladas (FFmpeg, etc.).
-                                         # Este é um passo CRÍTICO para a velocidade. O script build_dependencies.sh
-                                         # só será executado na íntegra se o conteúdo do cache for inválido.
+        - ~/.gradle/caches
+        - ~/.gradle/wrapper
 
-    # 3. SCRIPTS DE EXECUÇÃO
-    # Sequência de passos para testar, compilar e assinar o app.
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+
     scripts:
-      - name: Instalar dependências do sistema
+      - name: Clean project
         script: |
-          # Instala 'nasm', um pré-requisito para a compilação do FFmpeg.
-          brew install nasm
+          chmod +x gradlew
+          ./gradlew clean
 
-      - name: Compilar dependências nativas
+      - name: Download dependencies
         script: |
-          # Concede permissão de execução ao script.
-          chmod +x scripts/build_dependencies.sh
-          # Define a variável de ambiente para o diretório de saída das bibliotecas nativas.
-          # Este mesmo caminho é usado na seção de cache.
-          export PREFIX="$CM_BUILD_DIR/build/nativelibs"
-          # Executa o script. Leva ~20 mins na primeira vez, mas será quase instantâneo nos builds seguintes.
-          ./scripts/build_dependencies.sh all
+          ./gradlew dependencies
 
-      - name: Executar testes unitários
+      - name: Build APK Free Release
         script: |
-          # Garante que as funcionalidades principais estão funcionando antes de gerar os artefatos.
-          ./gradlew testProDebugUnitTest
+          ./gradlew assembleFreeRelease
 
-      - name: Configurar assinatura do app
+      - name: Build APK Pro Release
         script: |
-          # Cria o arquivo 'local.properties' de forma segura, usando variáveis de ambiente do Codemagic.
-          # NUNCA armazene senhas ou chaves diretamente no repositório.
-          echo "keystore.path=$CM_BUILD_DIR/keystore.jks" > "$CM_BUILD_DIR/local.properties"
-          echo "keystore.password=$CM_KEYSTORE_PASSWORD" >> "$CM_BUILD_DIR/local.properties"
-          echo "key.alias=$CM_KEY_ALIAS" >> "$CM_BUILD_DIR/local.properties"
-          echo "key.password=$CM_KEY_PASSWORD" >> "$CM_BUILD_DIR/local.properties"
-
-          # Decodifica o keystore (previamente codificado em Base64 e salvo como uma variável de ambiente segura).
-          echo $CM_ENCODED_KEYSTORE | base64 --decode > $CM_BUILD_DIR/keystore.jks
-
-      - name: Compilar Android App Bundle (AAB) para a Play Store
-        script: |
-          # Gera o artefato .aab assinado, pronto para ser enviado à Google Play.
-          ./gradlew bundleProRelease
-
-      - name: Compilar APK de Release
-        script: |
-          # Gera o artefato .apk assinado para distribuição direta ou testes.
           ./gradlew assembleProRelease
 
-    # 4. ARTEFATOS DE BUILD
-    # Especifica quais arquivos gerados devem ser salvos e disponibilizados para download.
-    artifacts:
-      - app/build/outputs/bundle/proRelease/*.aab
-      - app/build/outputs/apk/proRelease/*.apk
+      - name: Build APK Enterprise Release
+        script: |
+          ./gradlew assembleEnterpriseRelease
 
-    # 5. PUBLICAÇÃO (OPCIONAL)
-    # Exemplo de notificação por e-mail. Pode ser expandido para publicar na Play Store, etc.
+      - name: Build App Bundle
+        script: |
+          ./gradlew bundleProRelease
+
+    artifacts:
+      - app/build/outputs/**/*.apk
+      - app/build/outputs/**/*.aab
+
     publishing:
       email:
         recipients:
-          - victor.h.f.220@gmail.com # Adicione seu e-mail aqui
+          - jvictor_barbosa@live.com
         notify:
           success: true
           failure: true

@@ -18,6 +18,7 @@ val localProperties = Properties().apply {
 android {
     namespace = "com.cinecamera"
     compileSdk = 34
+    ndkVersion = "25.1.8937393"
 
     defaultConfig {
         applicationId = "com.cinecamera"
