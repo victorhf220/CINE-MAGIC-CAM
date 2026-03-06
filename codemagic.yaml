@@ -26,11 +26,17 @@ workflows:
           source: true
 
     scripts:
+      - name: Check Gradle Version
+        script: |
+          chmod +x gradlew
+          ./gradlew --version
+          
       - name: Clean Gradle Cache
         script: |
-          # Force clean gradle cache to ensure fresh download of gradle-8.4
+          # Force clean gradle cache to ensure fresh download of gradle-8.7
           rm -rf ~/.gradle/wrapper/dists/gradle-8.1.1* || true
           rm -rf ~/.gradle/wrapper/dists/gradle-8.3.2* || true
+          rm -rf ~/.gradle/wrapper/dists/gradle-8.4* || true
           echo "✓ Old Gradle versions removed from cache"
           
       - name: Setup Environment
@@ -47,29 +53,27 @@ workflows:
           
       - name: Setup and Clean
         script: |
-          chmod +x gradlew || true
-          # Use gradle command if gradlew not available
-          gradle clean
+          ./gradlew clean
 
       - name: Download dependencies
         script: |
-          gradle dependencies
+          ./gradlew dependencies
 
       - name: Build APK Free Release
         script: |
-          gradle assembleFreeRelease
+          ./gradlew assembleFreeRelease
 
       - name: Build APK Pro Release
         script: |
-          gradle assembleProRelease
+          ./gradlew assembleProRelease
 
       - name: Build APK Enterprise Release
         script: |
-          gradle assembleEnterpriseRelease
+          ./gradlew assembleEnterpriseRelease
 
       - name: Build App Bundle
         script: |
-          gradle bundleProRelease
+          ./gradlew bundleProRelease
 
     artifacts:
       - app/build/outputs/**/*.apk
