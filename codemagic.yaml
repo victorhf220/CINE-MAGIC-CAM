@@ -1,163 +1,122 @@
-# ════════════════════════════════════════════════════════════════════════════════
-# CINEMAGIC-CAM - Codemagic CI/CD Pipeline
-# Estrutura simplificada e validada
-# ════════════════════════════════════════════════════════════════════════════════
-
 workflows:
-  android-build:
-    name: Android Build Pipeline
+  android-workflow:
+    name: Android Build — APK & AAB
+    max_build_duration: 60
     instance_type: linux_x2
-    max_build_duration: 120
 
     environment:
       java: 17
 
+    scripts:
+      # ─── PASSO 1: Corrigir gradle-wrapper.jar ausente ───────────────────────
+      - name: Fix — Restaurar gradle-wrapper.jar
+        script: |
+          set -e
+
+          echo "📦 Verificando gradle-wrapper.jar..."
+
+          if [ -f "gradle/wrapper/gradle-wrapper.jar" ]; then
+            echo "✅ gradle-wrapper.jar já existe. Pulando download."
+          else
+            echo "⚠️  gradle-wrapper.jar AUSENTE. Iniciando recuperação..."
+
+            # Lê a versão do Gradle definida no properties
+            if [ -f "gradle/wrapper/gradle-wrapper.properties" ]; then
+              GRADLE_VERSION=$(grep "distributionUrl" gradle/wrapper/gradle-wrapper.properties \
+                | grep -oP '(?<=gradle-)[0-9]+\.[0-9]+(\.[0-9]+)?(?=-(bin|all)\.zip)')
+              echo "🔍 Versão detectada no properties: $GRADLE_VERSION"
+            else
+              GRADLE_VERSION="8.7"
+              echo "⚠️  gradle-wrapper.properties não encontrado. Usando padrão: $GRADLE_VERSION"
+
+              # Recria o properties com versão padrão segura
+              mkdir -p gradle/wrapper
+              cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\://services.gradle.org/distributions/gradle-8.7-bin.zip
+networkTimeout=10000
+validateDistributionUrl=true
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+EOF
+            fi
+
+            echo "⬇️  Baixando Gradle ${GRADLE_VERSION} para gerar o wrapper..."
+            curl -fsSL \
+              "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" \
+              -o /tmp/gradle-dist.zip
+
+            echo "📂 Extraindo distribuição Gradle..."
+            unzip -q /tmp/gradle-dist.zip -d /tmp/gradle-install
+
+            echo "🔧 Gerando gradle-wrapper.jar via 'gradle wrapper'..."
+            mkdir -p gradle/wrapper
+            /tmp/gradle-install/gradle-${GRADLE_VERSION}/bin/gradle wrapper \
+              --gradle-version="${GRADLE_VERSION}" \
+              --distribution-type=bin \
+              --project-dir="$(pwd)"
+
+            # Limpeza
+            rm -rf /tmp/gradle-dist.zip /tmp/gradle-install
+
+            echo "✅ gradle-wrapper.jar gerado com sucesso!"
+          fi
+
+          # Garante permissão de execução no gradlew
+          chmod +x gradlew
+          echo "📋 Conteúdo de gradle/wrapper/:"
+          ls -lah gradle/wrapper/
+
+      # ─── PASSO 2: Verificar versão do Gradle ────────────────────────────────
+      - name: Check Gradle version
+        script: |
+          chmod +x gradlew
+          ./gradlew --version
+
+      # ─── PASSO 3: Verificar ambiente ────────────────────────────────────────
+      - name: Check environment
+        script: |
+          echo "☕ Java version:"
+          java -version
+
+          echo "📱 Android SDK:"
+          echo "  ANDROID_SDK_ROOT = $ANDROID_SDK_ROOT"
+          echo "  ANDROID_HOME     = $ANDROID_HOME"
+
+          echo "📁 Estrutura do projeto:"
+          ls -la
+
+      # ─── PASSO 4: Limpar projeto ─────────────────────────────────────────────
+      - name: Clean project
+        script: |
+          ./gradlew clean --no-daemon --stacktrace
+
+      # ─── PASSO 5: Build Debug APK ────────────────────────────────────────────
+      - name: Build Debug APK
+        script: |
+          ./gradlew assembleDebug \
+            --no-daemon \
+            --stacktrace \
+            --info
+
+      # ─── PASSO 6: Build Release AAB ──────────────────────────────────────────
+      - name: Build Release AAB
+        script: |
+          ./gradlew bundleRelease \
+            --no-daemon \
+            --stacktrace
+
+    # ─── ARTEFATOS GERADOS ───────────────────────────────────────────────────
+    artifacts:
+      - app/build/outputs/apk/debug/*.apk
+      - app/build/outputs/apk/release/*.apk
+      - app/build/outputs/bundle/release/*.aab
+      - app/build/outputs/logs/*.txt
+
+    # ─── CACHE (acelera builds futuros) ──────────────────────────────────────
     cache:
       cache_paths:
         - $HOME/.gradle/caches
         - $HOME/.gradle/wrapper
         - $HOME/.android/build-cache
-
-    triggering:
-      events:
-        - push
-      branch_patterns:
-        - pattern: main
-          include: true
-          source: true
-
-    scripts:
-      # ─── CRÍTICO: Restaurar gradle-wrapper.jar se ausente ───────────────────
-      - name: Fix — Restaurar gradle-wrapper.jar ausente
-        script: |
-          set -e
-          
-          echo "📦 Verificando gradle-wrapper.jar..."
-          
-          if [ -f "gradle/wrapper/gradle-wrapper.jar" ] && [ -s "gradle/wrapper/gradle-wrapper.jar" ]; then
-            SIZE=$(stat --format=%s "gradle/wrapper/gradle-wrapper.jar")
-            if [ "$SIZE" -gt 1000 ]; then
-              echo "✅ gradle-wrapper.jar válido ($(numfmt --to=iec $SIZE 2>/dev/null || echo $SIZE bytes)). Pulando download."
-            else
-              echo "⚠️  gradle-wrapper.jar pequeno demais ($SIZE bytes). Regenerando..."
-              rm -f "gradle/wrapper/gradle-wrapper.jar"
-            fi
-          fi
-          
-          if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ] || [ ! -s "gradle/wrapper/gradle-wrapper.jar" ]; then
-            echo "⚠️  gradle-wrapper.jar AUSENTE ou INVÁLIDO. Iniciando recuperação..."
-            
-            # Lê versão do Gradle
-            GRADLE_VERSION="8.7"
-            if [ -f "gradle/wrapper/gradle-wrapper.properties" ]; then
-              GRADLE_VERSION=$(grep "distributionUrl" gradle/wrapper/gradle-wrapper.properties \
-                | grep -oP '(?<=gradle-)[0-9]+\.[0-9]+(\.[0-9]+)?(?=-(bin|all)\.zip)' || echo "8.7")
-            fi
-            echo "🔍 Versão detectada: $GRADLE_VERSION"
-            
-            echo "⬇️  Baixando gradle-wrapper.jar para versão $GRADLE_VERSION..."
-            mkdir -p gradle/wrapper
-            curl -fsSL \
-              "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" \
-              -o /tmp/gradle-dist.zip
-            
-            echo "📂 Extraindo distribuição Gradle..."
-            unzip -q /tmp/gradle-dist.zip -d /tmp/
-            
-            echo "🔧 Localizando gradle-wrapper.jar..."
-            JAR_PATH=$(find /tmp/gradle-${GRADLE_VERSION}* -name "gradle-wrapper*.jar" -type f | head -1)
-            if [ -z "$JAR_PATH" ]; then
-              # Se não encontrar, tentar outro caminho
-              JAR_PATH="/tmp/gradle-${GRADLE_VERSION}/lib/gradle-wrapper-${GRADLE_VERSION}.jar"
-            fi
-            
-            if [ -f "$JAR_PATH" ]; then
-              cp "$JAR_PATH" "gradle/wrapper/gradle-wrapper.jar"
-              SIZE=$(stat --format=%s "gradle/wrapper/gradle-wrapper.jar" 2>/dev/null || echo "unknown")
-              echo "✅ gradle-wrapper.jar restaurado! (Tamanho: $SIZE)"
-            else
-              # Último recurso: tentar usar a versão já em cache do Gradle
-              echo "⚠️  Não consegui extrair do ZIP. Tentando usar Gradle em cache..."
-              gradle wrapper --gradle-version="${GRADLE_VERSION}" --distribution-type=bin || \
-              echo "⚠️  Falha ao gerar wrapper. Codemagic usará versão padrão do sistema."
-            fi
-            
-            # Limpeza
-            rm -f /tmp/gradle-dist.zip
-            rm -rf /tmp/gradle-${GRADLE_VERSION}*
-            
-            echo "📋 Conteúdo de gradle/wrapper/:"
-            ls -lah gradle/wrapper/
-          fi
-
-      # ─── Validar permissões ──────────────────────────────────────────────────
-      - name: Fix gradle permissions
-        script: |
-          chmod +x gradlew gradlew.bat || true
-          echo "📋 Conteúdo de gradle/wrapper/:"
-          ls -lah gradle/wrapper/
-          echo "✓ Gradlew permission fixed"
-
-      # ─── Verificar versão ────────────────────────────────────────────────────
-      - name: Check Gradle version
-        script: |
-          echo "Gradle version:"
-          ./gradlew --version
-
-      # ─── Verificar ambiente ──────────────────────────────────────────────────
-      - name: Setup environment
-        script: |
-          echo "☕ Java version:"
-          java -version
-          
-          echo ""
-          echo "📱 Android environment:"
-          echo "ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT"
-          echo "ANDROID_HOME: $ANDROID_HOME"
-          
-          # Create local.properties
-          cat > local.properties << EOF
-          sdk.dir=/opt/android-sdk
-          EOF
-          echo "✓ local.properties created"
-
-      # ─── Limpar cache ────────────────────────────────────────────────────────
-      - name: Clean Gradle cache
-        script: |
-          rm -rf ~/.gradle/wrapper/dists/gradle-8.1.1* || true
-          rm -rf ~/.gradle/wrapper/dists/gradle-8.3.2* || true
-          rm -rf ~/.gradle/wrapper/dists/gradle-8.4* || true
-          echo "✓ Old Gradle versions removed"
-
-      # ─── Build ───────────────────────────────────────────────────────────────
-      - name: Clean project
-        script: |
-          ./gradlew clean --no-daemon --stacktrace
-
-      - name: Build APK Free Release
-        script: |
-          ./gradlew assembleFreeRelease --no-daemon --stacktrace
-
-      - name: Build APK Pro Release
-        script: |
-          ./gradlew assembleProRelease --no-daemon --stacktrace
-
-      - name: Build APK Enterprise Release
-        script: |
-          ./gradlew assembleEnterpriseRelease --no-daemon --stacktrace
-
-      - name: Build App Bundle
-        script: |
-          ./gradlew bundleProRelease --no-daemon --stacktrace
-
-    artifacts:
-      - app/build/outputs/**/*.apk
-      - app/build/outputs/**/*.aab
-
-    publishing:
-      email:
-        recipients:
-          - jvictor_barbosa@live.com
-        notify:
-          success: true
-          failure: true
