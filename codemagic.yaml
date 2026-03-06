@@ -26,11 +26,15 @@ workflows:
           source: true
 
     scripts:
-      - name: Check Gradle Version
+      - name: Fix gradle permission
         script: |
           chmod +x gradlew
+          echo "✓ Gradlew permission fixed"
+
+      - name: Check Gradle version
+        script: |
           ./gradlew --version
-          
+
       - name: Clean Gradle Cache
         script: |
           # Force clean gradle cache to ensure fresh download of gradle-8.7
@@ -51,7 +55,7 @@ workflows:
           EOF
           echo "✓ local.properties created"
           
-      - name: Setup and Clean
+      - name: Clean project
         script: |
           ./gradlew clean
 
