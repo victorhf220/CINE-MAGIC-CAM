@@ -2,7 +2,7 @@ workflows:
   android-build:
     name: Android Build — APK & AAB
     max_build_duration: 60
-    instance_type: linux_x2
+    instance_type: linux_x1
 
     environment:
       java: 17
@@ -13,7 +13,7 @@ workflows:
         script: |
           set -e
           echo "📦 Verificando gradle-wrapper.jar..."
-          
+
           if [ ! -f "gradle/wrapper/gradle-wrapper.jar" ] || [ ! -s "gradle/wrapper/gradle-wrapper.jar" ]; then
             echo "⚠️  gradle-wrapper.jar AUSENTE ou INVÁLIDO. Recuperando..."
             mkdir -p gradle/wrapper
@@ -28,7 +28,7 @@ workflows:
           else
             echo "✅ gradle-wrapper.jar OK"
           fi
-          
+
           chmod +x gradlew gradlew.bat
 
       # ─── PASSO 2: Verificar Gradle ──────────────────────────────────────────
