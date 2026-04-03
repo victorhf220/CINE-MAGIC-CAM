@@ -8,15 +8,14 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # ─── Compiler flags ───────────────────────────────────────────────────────────
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -ffast-math -fno-exceptions -fvisibility=hidden")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DNDEBUG -flto")
-set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--gc-sections")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DNDEBUG")
 
 # NEON SIMD on ARM64
 if(ANDROID_ABI STREQUAL "arm64-v8a")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8-a+simd+crypto -mfpu=neon-fp-armv8")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8-a+simd")
 endif()
 
-# ─── Source files ─────────────────────────────────────────────────────────────
+# ─── Source files (STUBS for build) ─────────────────────────────────────────
 add_library(
     cinecamera_native
     SHARED
@@ -28,18 +27,18 @@ add_library(
 
     # ── Image Processing ─────────────────────────────────────────────────────
     imageprocessing/ImageProcessingJNI.cpp
-    imageprocessing/YUVConverter.cpp         # NEON-accelerated YUV→RGB
-    imageprocessing/LUTEngine.cpp            # 3D LUT trilinear interpolation
-    imageprocessing/NoiseReduction.cpp       # Bilateral filter
-    imageprocessing/WaveformGenerator.cpp   # Luminance column sampling
-    imageprocessing/HistogramAnalyzer.cpp   # 256-bucket RGB histogram
-    imageprocessing/GLRenderer.cpp          # OpenGL ES 3.0 render loop
-    imageprocessing/ShaderManager.cpp       # GLSL compilation and uniform binding
+    imageprocessing/YUVConverter.cpp
+    imageprocessing/LUTEngine.cpp
+    imageprocessing/NoiseReduction.cpp
+    imageprocessing/WaveformGenerator.cpp
+    imageprocessing/HistogramAnalyzer.cpp
+    imageprocessing/GLRenderer.cpp
+    imageprocessing/ShaderManager.cpp
 
     # ── Audio Engine ─────────────────────────────────────────────────────────
     audio/AudioJNI.cpp
-    audio/DSPChain.cpp                      # Noise gate, gain, limiter
-    audio/SyncManager.cpp                   # A/V PTS alignment
+    audio/DSPChain.cpp
+    audio/SyncManager.cpp
 
     # ── Stabilization ────────────────────────────────────────────────────────
     stabilization/StabilizationJNI.cpp
@@ -47,88 +46,37 @@ add_library(
     stabilization/KalmanFilter3D.cpp
     stabilization/RollingShutterCorrection.cpp
 
-    # ── Streaming: SRT ───────────────────────────────────────────────────────
-    streaming/SRTEngine.cpp                 # libsrt socket management
-    streaming/MPEGTSPacketizer.cpp          # 188-byte TS packet construction
+    # ── Streaming ────────────────────────────────────────────────────────────
+    streaming/SRTEngine.cpp
+    streaming/MPEGTSPacketizer.cpp
     streaming/SRTJNIBridge.cpp
     streaming/NetworkMonitor.cpp
-
-    # ── Streaming: RTMP ──────────────────────────────────────────────────────
-    streaming/RTMPEngine.cpp                # librtmp or custom RTMP implementation
-    streaming/FLVMuxer.cpp                  # FLV container assembly
-    streaming/AMFSerializer.cpp             # AMF0/AMF3 metadata encoding
+    streaming/RTMPEngine.cpp
+    streaming/FLVMuxer.cpp
+    streaming/AMFSerializer.cpp
     streaming/RTMPJNIBridge.cpp
 
-    # ── Recovery: FFmpeg remux ────────────────────────────────────────────────
+    # ── Recovery ─────────────────────────────────────────────────────────────
     recovery/RecoveryJNI.cpp
-    recovery/FFmpegRemux.cpp                # Crash recovery remux via libavformat
+    recovery/FFmpegRemux.cpp
 
     # ── Encoding ─────────────────────────────────────────────────────────────
     encoding/EncodingJNI.cpp
-    encoding/BitstreamParser.cpp            # NAL unit extraction from MediaCodec output
+    encoding/BitstreamParser.cpp
 )
 
 # ─── Include paths ────────────────────────────────────────────────────────────
 target_include_directories(cinecamera_native PRIVATE
     ${CMAKE_SOURCE_DIR}/include
-    ${CMAKE_SOURCE_DIR}/include/srt
-    ${CMAKE_SOURCE_DIR}/include/ffmpeg
 )
 
 # ─── System libraries ─────────────────────────────────────────────────────────
 find_library(log-lib log)
 find_library(android-lib android)
-find_library(EGL-lib EGL)
-find_library(GLESv3-lib GLESv3)
-find_library(camera2ndk-lib camera2ndk)
-find_library(mediandk-lib mediandk)
-find_library(sync-lib sync)
 
-# ─── Pre-compiled static libraries ───────────────────────────────────────────
-# Build via scripts/build_dependencies.sh
-# Outputs to: app/src/main/cpp/libs/${ANDROID_ABI}/
-
-set(LIB_DIR ${CMAKE_SOURCE_DIR}/libs/${ANDROID_ABI})
-
-# libsrt (Haivision SRT)
-add_library(srt STATIC IMPORTED)
-set_target_properties(srt PROPERTIES IMPORTED_LOCATION ${LIB_DIR}/libsrt.a)
-
-# libssl / libcrypto (OpenSSL, required by libsrt for AES encryption)
-add_library(ssl STATIC IMPORTED)
-set_target_properties(ssl PROPERTIES IMPORTED_LOCATION ${LIB_DIR}/libssl.a)
-add_library(crypto STATIC IMPORTED)
-set_target_properties(crypto PROPERTIES IMPORTED_LOCATION ${LIB_DIR}/libcrypto.a)
-
-# FFmpeg (libavformat, libavcodec, libavutil — for crash recovery remux)
-add_library(avformat STATIC IMPORTED)
-set_target_properties(avformat PROPERTIES IMPORTED_LOCATION ${LIB_DIR}/libavformat.a)
-add_library(avcodec STATIC IMPORTED)
-set_target_properties(avcodec PROPERTIES IMPORTED_LOCATION ${LIB_DIR}/libavcodec.a)
-add_library(avutil STATIC IMPORTED)
-set_target_properties(avutil PROPERTIES IMPORTED_LOCATION ${LIB_DIR}/libavutil.a)
-add_library(swresample STATIC IMPORTED)
-set_target_properties(swresample PROPERTIES IMPORTED_LOCATION ${LIB_DIR}/libswresample.a)
-
-# ─── Link ─────────────────────────────────────────────────────────────────────
+# ─── Link (simplified for stubs) ─────────────────────────────────────────────
 target_link_libraries(
     cinecamera_native
     ${log-lib}
     ${android-lib}
-    ${EGL-lib}
-    ${GLESv3-lib}
-    ${camera2ndk-lib}
-    ${mediandk-lib}
-    ${sync-lib}
-    srt
-    ssl
-    crypto
-    avformat
-    avcodec
-    avutil
-    swresample
-    atomic
-    dl
-    z
-    m
 )
