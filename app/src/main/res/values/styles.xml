@@ -7,7 +7,7 @@
     Typography: Roboto Condensed (system font, pre-installed on Android)
     is used throughout to match the CSS font-family declaration.
 -->
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
 
     <!-- ═══════════════════════════════════════════════════
          APPLICATION THEME
